@@ -8,18 +8,15 @@ from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
 import requests
 
-'''
-Red underlines? Install the required packages first: 
-Open the Terminal in PyCharm (bottom left). 
+TMDB_KEY = "fecc0b755f3d85a7b706fb5933b267ec"
 
-On Windows type:
-python -m pip install -r requirements.txt
+TMDB_URL = "https://api.themoviedb.org/3/search/movie?include_adult=false&language=en-US&page=1"
 
-On MacOS type:
-pip3 install -r requirements.txt
+headers = {
+    "accept": "application/json",
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJmZWNjMGI3NTVmM2Q4NWE3YjcwNmZiNTkzM2IyNjdlYyIsInN1YiI6IjY1ZTlhNmFlNmJlYWVhMDE2Mzc5MmE1ZCIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.fkJ2frv2mVOj0qB5M_0BiBlZ_7HJJx22NDDi5m2wsHM"
+}
 
-This will install the packages from requirements.txt for this project.
-'''
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '8BYkEfBA6O6donzWlSihBXox7C0sKR6b'
@@ -82,6 +79,12 @@ class RateMovieForm(FlaskForm):
     submit = SubmitField("Done")
 
 
+# New Find movie Form
+class FindMovieForm(FlaskForm):
+    title = StringField("Movie Title", validators=[DataRequired()])
+    submit = SubmitField("Add movie")
+
+
 @app.route("/")
 def home():
     result = db.session.execute(db.select(Movie))
@@ -100,6 +103,28 @@ def rate_movie():
         db.session.commit()
         return redirect(url_for("home"))
     return render_template("edit.html", movie=movie, form=form)
+
+
+@app.route("/add", methods=["GET", "POST"])
+def add_movie():
+    form = FindMovieForm()
+
+    if form.validate_on_submit():
+        movie_title = form.title.data
+        response = requests.get(TMDB_URL, params={"api_key": TMDB_KEY, "query": movie_title})
+        data = response.json()["results"]
+        return render_template("select.html", options=data)
+
+    return render_template("add.html", form=form)
+
+
+@app.route("/delete")
+def delete_movie():
+    movie_id = request.args.get("id")
+    movie = db.get_or_404(Movie, movie_id)
+    db.session.delete(movie)
+    db.session.commit()
+    return redirect(url_for("home"))
 
 
 if __name__ == '__main__':
